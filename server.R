@@ -1,602 +1,3 @@
-library(shiny)
-library(bslib)
-library(readxl)
-library(rsconnect)
-library(dplyr)
-library(ggplot2)
-library(plotly)
-library(tidyverse)
-library(DT)
-library(RColorBrewer)
-library(tidyr)
-library(scales)
-library(shinymanager)
-library(reactable)
-library(shiny)
-library(httr)
-library(jsonlite)
-# test 
-# Define a custom theme
-custom_theme <- bs_theme(
-  version = 5,
-  bootswatch = "flatly",
-  primary = "#3498db",
-  secondary = "#2c3e50",
-  success = "#18bc9c",
-  info = "#3498db",
-  warning = "#f39c12",
-  danger = "#e74c3c",
-  base_font = font_google("Roboto")
-)
-
-ui <- page_fluid(
-  theme = custom_theme,
-  
-  # Custom CSS
-  tags$head(
-    tags$style(HTML("
-      body { 
-        overflow-y: auto;
-        background-color: #ecf0f1;
-      }
-      .card {
-        margin-bottom: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-      }
-      .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-      }
-      .card-header {
-        background-color: gray;
-        color: white;
-        font-weight: bold;
-        border-top-left-radius: 10px;
-        border-top-right-radius: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .btn-primary {
-        background-color: gray;
-        border-color: gray;
-      }
-      .btn-primary:hover {
-        background-color: #2980b9;
-        border-color: #2980b9;
-      }
-      .btn-secondary {
-        background-color: black;
-        border-color: black;
-      }
-      .btn-secondary:hover {
-        background-color: #34495e;
-        border-color: #34495e;
-      }
-      .close-btn {
-        color: white;
-        background: transparent;
-        border: none;
-        font-size: 20px;
-        cursor: pointer;
-        padding: 0 10px;
-      }
-      .close-btn:hover {
-        color: #f39c12;
-      }
-      .collapsed-card {
-        height: auto !important;
-        min-height: 0 !important;
-      }
-    "))
-  ),
-  
-  # Add JavaScript for card collapse functionality
-  tags$script(HTML("
-    $(document).on('click', '.close-btn', function() {
-      var cardBody = $(this).closest('.card').find('.card-body');
-      if(cardBody.is(':visible')) {
-        cardBody.hide();
-        $(this).html('&#x25BC;'); // Down arrow
-        $(this).closest('.card').addClass('collapsed-card');
-      } else {
-        cardBody.show();
-        $(this).html('&#x2715;'); // X symbol
-        $(this).closest('.card').removeClass('collapsed-card');
-      }
-    });
-  ")),
-  
-  # Header
-  layout_column_wrap(
-    width = 1/2,
-    heights_equal = "row",
-    img(src = "CinnaGen_Logo.png", height = 80, width = 160),
-  ),
-  
-  # Main layout
-  layout_sidebar(
-    sidebar = sidebar(
-      width = 350,
-      style = "background-color: #f8f9fa; padding: 20px; border-radius: 10px;",
-      fileInput("file_3", "Upload your payment file",
-                multiple = FALSE,
-                accept = c(".xlsx")),
-      card(
-        card_header(
-          div(class = "d-flex justify-content-between align-items-center",
-              "Filters",
-              tags$button(class = "close-btn", HTML("&#x2715;"))
-          )
-        ),
-        card_body(
-          div(class = "live-stat",
-              uiOutput("Year_ui_1"),
-              uiOutput("date_range_selector"),
-              uiOutput("Manufacturer_ui_1"),
-              uiOutput("Country_ui_1"),
-              uiOutput("Consignee_ui_1")
-          )
-        )
-      ),
-      # card(
-      #   card_header(
-      #     div(class = "d-flex justify-content-between align-items-center",
-      #         "Exchange rates",
-      #         tags$button(class = "close-btn", HTML("&#x2715;"))
-      #     )
-      #   ),
-      #   card_body(
-      #     div(class = "live-stat",
-      #         uiOutput("multiplier_EUR"),
-      #         uiOutput("multiplier_RUB"),
-      #         uiOutput("multiplier_IQD"),
-      #         uiOutput("multiplier_INR")
-      #     )
-      #   )
-      # ),
-      actionButton("calcButton_1", "Calculate", class = "btn-primary mt-3 w-100"),
-      hr(),
-      "Author: Naser Ahmadi", 
-      a(href = "mailto:Naserahmadi3002@gmail.com", "Email", style = "color: #3498db;")
-    ),
-    
-    # Main panel with tabs
-    tabsetPanel(
-      id = "main_tabs",
-      # First tab - Overall
-      tabPanel("Overall",
-               card(
-                 card_body(
-                   layout_columns(
-                     # Card 1 (25% width)
-                     card(
-                       height = "500px",
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             div(
-                               tags$i(class = "fas fa-coins me-2"),  # Coin icon
-                               "Overall Payment"
-                             ),
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         div(class = "combined-currency-card",
-                             htmlOutput("combined_currency_summary_1")
-                         ),
-                         # Add the CSS styles inline
-                         tags$style(HTML("
-      .combined-currency-card {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        height: 100%;
-      }
-      
-      .currency-breakdown {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        padding-right: 20px;
-        border-right: 2px solid #eee;
-      }
-      
-      .total-summary {
-        background: linear-gradient(135deg, #007bff, #0056b3);
-        color: white;
-        border-radius: 8px;
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        margin-left: 1px;
-      }
-      
-      .currency-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        transition: transform 0.2s;
-      }
-      
-      .currency-item:hover {
-        transform: translateX(5px);
-      }
-      
-      .total-icon {
-        font-size: 2.5em;
-        opacity: 0.9;
-      }
-      
-      .currency-icon {
-        font-size: 1.5em;
-        width: 30px;
-        text-align: center;
-      }
-      
-      .currency-icon.usd { color: #28a745; }
-      .currency-icon.euro { color: #007bff; }
-      .currency-icon.rub { color: #dc3545; }
-      .currency-icon.dinar { color: #ffc107; }
-    "))
-                       )
-                     ),
-                     card(
-                       height = "500px",
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             div(
-                               tags$i(class = "fas fa-coins me-2"),  # Coin icon
-                               "Paid Value"
-                             ),
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         div(class = "combined-currency-card",
-                             htmlOutput("combined_currency_summary")
-                         ),
-                         # Add the CSS styles inline
-                         tags$style(HTML("
-      .combined-currency-card {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        height: 100%;
-      }
-      
-      .currency-breakdown {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        padding-right: 20px;
-        border-right: 2px solid #eee;
-      }
-      
-      .total-summary {
-        background: linear-gradient(135deg, #007bff, #0056b3);
-        color: white;
-        border-radius: 8px;
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        margin-left: 1px;
-      }
-      
-      .currency-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        transition: transform 0.2s;
-      }
-      
-      .currency-item:hover {
-        transform: translateX(5px);
-      }
-      
-      .total-icon {
-        font-size: 2.5em;
-        opacity: 0.9;
-      }
-      
-      .currency-icon {
-        font-size: 1.5em;
-        width: 30px;
-        text-align: center;
-      }
-      
-      .currency-icon.usd { color: #28a745; }
-      .currency-icon.euro { color: #007bff; }
-      .currency-icon.rub { color: #dc3545; }
-      .currency-icon.dinar { color: #ffc107; }
-    "))
-                       )
-                     ),
-                     card(
-                       height = "500px",
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             div(
-                               tags$i(class = "fas fa-coins me-2"),  # Coin icon
-                               "Overdue Payment"
-                             ),
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         div(class = "combined-currency-card",
-                             htmlOutput("combined_currency_summary_2")
-                         ),
-                         # Add the CSS styles inline
-                         tags$style(HTML("
-      .combined-currency-card {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        height: 100%;
-      }
-      
-      .currency-breakdown {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        padding-right: 20px;
-        border-right: 2px solid #eee;
-      }
-      
-      .total-summary {
-        background: linear-gradient(135deg, #007bff, #0056b3);
-        color: white;
-        border-radius: 8px;
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        margin-left: 1px;
-      }
-      
-      .currency-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        transition: transform 0.2s;
-      }
-      
-      .currency-item:hover {
-        transform: translateX(5px);
-      }
-      
-      .total-icon {
-        font-size: 2.5em;
-        opacity: 0.9;
-      }
-      
-      .currency-icon {
-        font-size: 1.5em;
-        width: 30px;
-        text-align: center;
-      }
-      
-      .currency-icon.usd { color: #28a745; }
-      .currency-icon.euro { color: #007bff; }
-      .currency-icon.rub { color: #dc3545; }
-      .currency-icon.dinar { color: #ffc107; }
-    "))
-                       )
-                     ),
-                     # Specify column widths (Bootstrap grid: 3 + 3 + 6 = 12)
-                     col_widths = c(4,4,4)
-                   )
-                 )
-               )
-               
-               ,
-               card(
-                 card_body(
-                   layout_columns(
-                     # Card 3 (50% width)
-                     card(
-                       height = "500px",
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Total paid value in USD by year of export",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         div(class = "live-stat",
-                             plotlyOutput("plot_Year")
-                         )
-                       )
-                     ),
-                     card(
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value in USD by Value type",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput("plot_Paid_type")
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_body(
-                   layout_columns(
-                     card(
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value by manufacturer",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput('plot_Manufacturer_1')
-                       )
-                     ),
-                     card(
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value in USD by manufacturer",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput("plot_Manufacturer_2")
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_body(
-                   layout_columns(
-                     card(
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Payments by payment type and currency type",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput('plot_currency')
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_body(
-                   layout_columns(
-                     card(
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value by Status",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput("plot_currency_paid")
-                       )
-                     )
-                   )
-                 )
-               )
-      ),
-      # Second tab - Detail
-      tabPanel("Tables",
-               card(
-                 card_header(
-                   div(class = "d-flex justify-content-between align-items-center",
-                       "Invoice data",
-                       tags$button(class = "close-btn", HTML("&#x2715;"))
-                   )
-                 ),
-                 card_body(
-                   card(
-                     card_body(
-                       reactableOutput("data_1")
-                     )
-                   ),
-                   card(
-                     card_body(
-                       div(style = "display: flex; justify-content: space-around; padding: 10px;",
-                           downloadButton("downloadTable1_0", "Download Data", class = "btn-secondary"),
-                           downloadButton("downloadTable1_1", "Download Overdue Data", class = "btn-secondary"),
-                           downloadButton("downloadTable1_2", "Download One Week Remains Data", class = "btn-secondary")
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_header(
-                   div(class = "d-flex justify-content-between align-items-center",
-                       "Paid data",
-                       tags$button(class = "close-btn", HTML("&#x2715;"))
-                   )
-                 ),
-                 card_body(
-                   card(
-                     card_body(
-                       reactableOutput("data_2")
-                     )
-                   ),
-                   card(
-                     card_body(
-                       div(style = "display: flex; justify-content: space-around; padding: 10px;",
-                           downloadButton("downloadTable2_0", "Download Data", class = "btn-secondary")
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_header(
-                   div(class = "d-flex justify-content-between align-items-center",
-                       "Status data",
-                       tags$button(class = "close-btn", HTML("&#x2715;"))
-                   )
-                 ),
-                 card_body(
-                   card(
-                     card_body(
-                       reactableOutput("data_3")
-                     )
-                   ),
-                   card(
-                     card_body(
-                       div(style = "display: flex; justify-content: space-around; padding: 10px;",
-                           downloadButton("downloadTable3_0", "Download Data", class = "btn-secondary")
-                       )
-                     )
-                   )
-                 )
-               )
-      ),
-      tabPanel("Plots",
-               card(
-                 card_header(
-                   div(class = "d-flex justify-content-between align-items-center",
-                       "Paids by currency type and manufacturer",
-                       tags$button(class = "close-btn", HTML("&#x2715;"))
-                   )
-                 ),
-                 card_body(
-                   plotlyOutput('plot_11')
-                 )
-               ),
-               card(
-                 card_header(
-                   div(class = "d-flex justify-content-between align-items-center",
-                       "Average delay by consignee",
-                       tags$button(class = "close-btn", HTML("&#x2715;"))
-                   )
-                 ),
-                 card_body(
-                   plotlyOutput('plot_delay')
-                 )
-               )
-      )
-    )
-  )
-)
-
-ui <- secure_app(ui)
-
 source("functions.R")
 
 credentials <- data.frame(
@@ -606,15 +7,16 @@ credentials <- data.frame(
 )
 
 
-server <- function(input, output, session) {
+
+function(input, output, session) {
   
   res_auth <- secure_server(
     check_credentials = check_credentials(credentials)
   )
-  
-  # cleaning ----------------------------------------------------------------
-  
-  
+
+# cleaning ----------------------------------------------------------------
+
+
   Exchange_rates <- reactive({
     # Try to get rates from API
     tryCatch({
@@ -936,7 +338,7 @@ server <- function(input, output, session) {
     return(data.frame(d_filtered))
   })
   
-  # Payment plots ------------------------------------------------------------
+# Payment plots ------------------------------------------------------------
   data_plot_currency=reactive({
     req(data_6(),data_66())
     
@@ -1006,85 +408,85 @@ server <- function(input, output, session) {
     ggplotly(p, tooltip = "text") %>%
       layout(margin = list(b = 70, l = 70, t = 50, r = 50))
   })  
-  { # output$plot_currency <- renderPlotly({
-    #   req(data_plot_currency())
-    #   data_plot_currency <- data_plot_currency() %>% 
-    #     mutate(Currency_type = factor(Currency_type))
-    #   
-    #   # Create separate plots for each currency
-    #   currency_list <- split(data_plot_currency, data_plot_currency$Currency_type)
-    #   plot_list <- list()
-    #   
-    #   for (i in seq_along(currency_list)) {
-    #     currency_df <- currency_list[[i]]
-    #     
-    #     p <- plot_ly(currency_df) %>%
-    #       add_bars(
-    #         x = "Paid",
-    #         y = ~Paid,
-    #         name = "Paid",
-    #         legendgroup = "Paid",
-    #         showlegend = i == 1,
-    #         marker = list(color = "#EF9C66"),
-    #         text = ~comma(round(Paid, 0)),
-    #         textposition = "inside"
-    #       ) %>%
-    #       add_bars(
-    #         x = "Overdue",
-    #         y = ~Overdue,
-    #         name = "Overdue",
-    #         legendgroup = "Overdue",
-    #         showlegend = i == 1,
-    #         marker = list(color = "#FCDC94"),
-    #         text = ~comma(round(Overdue, 0)),
-    #         textposition = "inside"
-    #       ) %>%
-    #       add_bars(
-    #         x = "Future",
-    #         y = ~Future,
-    #         name = "Future",
-    #         legendgroup = "Future",
-    #         showlegend = i == 1,
-    #         marker = list(color = "#78ABA8"),
-    #         text = ~comma(round(Future, 0)),
-    #         textposition = "inside"
-    #       ) %>%
-    #       layout(
-    #         yaxis = list(title = "", showgrid = TRUE),
-    #         xaxis = list(title = "", tickangle = -45),
-    #         margin = list(b = 100, t = 30),
-    #         annotations = list(
-    #           list(
-    #             x = 0.5,
-    #             y = -0.3,
-    #             text = currency_df$Currency_type[1],
-    #             showarrow = FALSE,
-    #             xref = "paper",
-    #             yref = "paper",
-    #             font = list(size = 12)
-    #           )
-    #         ),
-    #         showlegend = FALSE
-    #       )
-    #     
-    #     plot_list[[i]] <- p
-    #   }
-    #   
-    #   # Combine plots horizontally
-    #   p <- subplot(
-    #     plot_list,
-    #     nrows = 1,
-    #     shareY = FALSE,
-    #     shareX = FALSE
-    #   ) %>%
-    #     layout(
-    #       legend = list(orientation = "h", x = 0.5, y = 1.1),
-    #       margin = list(b = 120)
-    #     )
-    #   
-    #   p
-    # })  
-  }
+ { # output$plot_currency <- renderPlotly({
+  #   req(data_plot_currency())
+  #   data_plot_currency <- data_plot_currency() %>% 
+  #     mutate(Currency_type = factor(Currency_type))
+  #   
+  #   # Create separate plots for each currency
+  #   currency_list <- split(data_plot_currency, data_plot_currency$Currency_type)
+  #   plot_list <- list()
+  #   
+  #   for (i in seq_along(currency_list)) {
+  #     currency_df <- currency_list[[i]]
+  #     
+  #     p <- plot_ly(currency_df) %>%
+  #       add_bars(
+  #         x = "Paid",
+  #         y = ~Paid,
+  #         name = "Paid",
+  #         legendgroup = "Paid",
+  #         showlegend = i == 1,
+  #         marker = list(color = "#EF9C66"),
+  #         text = ~comma(round(Paid, 0)),
+  #         textposition = "inside"
+  #       ) %>%
+  #       add_bars(
+  #         x = "Overdue",
+  #         y = ~Overdue,
+  #         name = "Overdue",
+  #         legendgroup = "Overdue",
+  #         showlegend = i == 1,
+  #         marker = list(color = "#FCDC94"),
+  #         text = ~comma(round(Overdue, 0)),
+  #         textposition = "inside"
+  #       ) %>%
+  #       add_bars(
+  #         x = "Future",
+  #         y = ~Future,
+  #         name = "Future",
+  #         legendgroup = "Future",
+  #         showlegend = i == 1,
+  #         marker = list(color = "#78ABA8"),
+  #         text = ~comma(round(Future, 0)),
+  #         textposition = "inside"
+  #       ) %>%
+  #       layout(
+  #         yaxis = list(title = "", showgrid = TRUE),
+  #         xaxis = list(title = "", tickangle = -45),
+  #         margin = list(b = 100, t = 30),
+  #         annotations = list(
+  #           list(
+  #             x = 0.5,
+  #             y = -0.3,
+  #             text = currency_df$Currency_type[1],
+  #             showarrow = FALSE,
+  #             xref = "paper",
+  #             yref = "paper",
+  #             font = list(size = 12)
+  #           )
+  #         ),
+  #         showlegend = FALSE
+  #       )
+  #     
+  #     plot_list[[i]] <- p
+  #   }
+  #   
+  #   # Combine plots horizontally
+  #   p <- subplot(
+  #     plot_list,
+  #     nrows = 1,
+  #     shareY = FALSE,
+  #     shareX = FALSE
+  #   ) %>%
+  #     layout(
+  #       legend = list(orientation = "h", x = 0.5, y = 1.1),
+  #       margin = list(b = 120)
+  #     )
+  #   
+  #   p
+  # })  
+}
   data_plot_currency_paid=reactive({
     req(data_666())
     
@@ -1137,13 +539,13 @@ server <- function(input, output, session) {
   
   data_plot_currency11=reactive({
     req(data_66())
-    
+
     data_plot_currency=data_66()  %>%
       group_by(paid_type,Manufacturer,Currency_type) %>%
       summarise(Paid= sum(Paid_value,na.rm=TRUE))%>% 
       mutate(Manufacturer=factor(Manufacturer))
-    
-    
+
+
     return(data_plot_currency)
   })
   output$plot_11 <- renderPlotly({
@@ -1228,7 +630,7 @@ server <- function(input, output, session) {
       summarise(Paid = sum(Paid_value, na.rm = TRUE), .groups = 'drop') %>%
       complete(Currency_type, Manufacturer, fill = list(Paid = 0))
     
-    
+
     
     
     # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
@@ -1280,10 +682,10 @@ server <- function(input, output, session) {
       # ungroup() %>% 
       # group_by(Manufacturer)%>% 
       # summarise(Paid=sum(Paid_value,na.rm=TRUE))
-      
-      
-      # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
-      return(d)
+    
+    
+    # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
+    return(d)
   })
   output$plot_Manufacturer_2 <- renderPlotly({
     req(data_Manufacturer_2())
@@ -1327,7 +729,7 @@ server <- function(input, output, session) {
       # ungroup() %>% 
       # group_by(Year)%>% 
       # summarise(Paid=sum(Paid_value,na.rm=TRUE))
-      
+    
       return(d)
   })
   output$plot_Year <- renderPlotly({
@@ -1427,7 +829,7 @@ server <- function(input, output, session) {
       )
   })  
   
-  # Payment tables ------------------------------------------------------------
+# Payment tables ------------------------------------------------------------
   
   data_table_payment=reactive({
     req(data_6())
@@ -1678,81 +1080,81 @@ server <- function(input, output, session) {
   #     )
   #   )
   # })
+
+# Text boxes --------------------------------------------------------------
   
-  # Text boxes --------------------------------------------------------------
-  
-  {  # output$sum_total <- renderUI({
-    #   req(data_66())
-    #   
-    #   # Process data
-    #   d <- data_66() %>% 
-    #     filter(!is.na(Order_number)) %>% 
-    #     group_by(Currency_type) %>% 
-    #     summarise(Paid_value = sum(Paid_value, na.rm = TRUE))
-    #   
-    #   # Function to safely get currency value
-    #   get_currency <- function(currency) {
-    #     value <- d$Paid_value[d$Currency_type == currency]
-    #     ifelse(length(value) > 0 && !is.na(value), 
-    #            format(round(value, 1), big.mark = ","), 
-    #            "0.0")
-    #   }
-    #   
-    #   HTML(
-    #     paste0(
-    #       '<div class="currency-summary">
-    #       <div class="currency-item">
-    #         <span>Dollar:</span><strong>', get_currency("USD"), '</strong>
-    #       </div>
-    #       <div class="currency-item">
-    #         <span>Euro:</span><strong>', get_currency("Euro"), '</strong>
-    #       </div>
-    #       <div class="currency-item">
-    #         <span>Ruble:</span><strong>', get_currency("RUB"), '</strong>
-    #       </div>
-    #       <div class="currency-item">
-    #         <span>Dinar:</span><strong>', get_currency("IQD"), '</strong>
-    #       </div>
-    #     </div>'
-    #     )
-    #   )
-    # })
-    # 
-    # output$sum_USD <- renderUI({
-    #   req(data_66())
-    #   
-    #   # Process data
-    #   d <- data_66() %>% 
-    #     filter(!is.na(Order_number)) %>% 
-    #     group_by(Currency_type) %>% 
-    #     summarise(Paid_value = sum(Paid_value, na.rm = TRUE))%>% 
-    #     left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
-    #                          Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
-    #                                          ,input$multiplier_RUB,input$multiplier_INR))) %>% 
-    #     mutate(Paid_value=Paid_value/Exchange_rate)%>% 
-    #     ungroup() %>% 
-    #     summarise(Paid_value=sum(Paid_value,na.rm=TRUE))
-    #   
-    #   # Function to safely get currency value
-    #   get_currency <- function(data) {
-    # 
-    #     d=as.numeric(data[1,1])
-    #     ifelse(length(d) > 0 && !is.na(d), 
-    #            format(round(d, 1), big.mark = ","), 
-    #            "0.0")
-    #   }
-    #   HTML(
-    #     paste0(
-    #       '<div class="currency-summary">
-    #       <div class="currency-item">
-    #         <span>Dollar:</span><strong>', get_currency(d), '</strong>
-    #       </div>
-    #       
-    #     </div>'
-    #     )
-    #   )
-    # })
-  }
+{  # output$sum_total <- renderUI({
+  #   req(data_66())
+  #   
+  #   # Process data
+  #   d <- data_66() %>% 
+  #     filter(!is.na(Order_number)) %>% 
+  #     group_by(Currency_type) %>% 
+  #     summarise(Paid_value = sum(Paid_value, na.rm = TRUE))
+  #   
+  #   # Function to safely get currency value
+  #   get_currency <- function(currency) {
+  #     value <- d$Paid_value[d$Currency_type == currency]
+  #     ifelse(length(value) > 0 && !is.na(value), 
+  #            format(round(value, 1), big.mark = ","), 
+  #            "0.0")
+  #   }
+  #   
+  #   HTML(
+  #     paste0(
+  #       '<div class="currency-summary">
+  #       <div class="currency-item">
+  #         <span>Dollar:</span><strong>', get_currency("USD"), '</strong>
+  #       </div>
+  #       <div class="currency-item">
+  #         <span>Euro:</span><strong>', get_currency("Euro"), '</strong>
+  #       </div>
+  #       <div class="currency-item">
+  #         <span>Ruble:</span><strong>', get_currency("RUB"), '</strong>
+  #       </div>
+  #       <div class="currency-item">
+  #         <span>Dinar:</span><strong>', get_currency("IQD"), '</strong>
+  #       </div>
+  #     </div>'
+  #     )
+  #   )
+  # })
+  # 
+  # output$sum_USD <- renderUI({
+  #   req(data_66())
+  #   
+  #   # Process data
+  #   d <- data_66() %>% 
+  #     filter(!is.na(Order_number)) %>% 
+  #     group_by(Currency_type) %>% 
+  #     summarise(Paid_value = sum(Paid_value, na.rm = TRUE))%>% 
+  #     left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
+  #                          Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
+  #                                          ,input$multiplier_RUB,input$multiplier_INR))) %>% 
+  #     mutate(Paid_value=Paid_value/Exchange_rate)%>% 
+  #     ungroup() %>% 
+  #     summarise(Paid_value=sum(Paid_value,na.rm=TRUE))
+  #   
+  #   # Function to safely get currency value
+  #   get_currency <- function(data) {
+  # 
+  #     d=as.numeric(data[1,1])
+  #     ifelse(length(d) > 0 && !is.na(d), 
+  #            format(round(d, 1), big.mark = ","), 
+  #            "0.0")
+  #   }
+  #   HTML(
+  #     paste0(
+  #       '<div class="currency-summary">
+  #       <div class="currency-item">
+  #         <span>Dollar:</span><strong>', get_currency(d), '</strong>
+  #       </div>
+  #       
+  #     </div>'
+  #     )
+  #   )
+  # })
+}
   output$combined_currency_summary <- renderUI({
     req(data_66())
     
@@ -1793,9 +1195,9 @@ server <- function(input, output, session) {
       ifelse(length(value) > 0 && !is.na(value), format_value(value), "0.0")
     }
     
-    HTML(
-      paste0(
-        '<div class="combined-currency-card">
+      HTML(
+        paste0(
+          '<div class="combined-currency-card">
         <div class="currency-breakdown">
           <div class="currency-item">
             <i class="fas fa-dollar-sign currency-icon usd"></i>
@@ -1849,8 +1251,8 @@ server <- function(input, output, session) {
           </div>
         </div>
       </div>'
+        )
       )
-    )
     
   })
   
@@ -2039,6 +1441,3 @@ server <- function(input, output, session) {
   
 }
 
-
-# Run the app
-shinyApp(ui, server)
