@@ -1,0 +1,12 @@
+name: Payment-warning
+title: Payment-warning
+username: bd-stat
+account: bd-stat
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11457321
+bundleId: 10681032
+url: https://bd-stat.shinyapps.io/Payment-warning/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

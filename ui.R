@@ -430,24 +430,6 @@ ui <- page_fluid(
                      )
                    )
                  )
-               ),
-               card(
-                 card_body(
-                   layout_columns(
-                     card(
-                       height = "600px", # Added height
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value by Status",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput("plot_currency_paid", height="500px") # ensure plot has enough height
-                       )
-                     )
-                   )
-                 )
                )
       ),
       tabPanel("Tables",
@@ -492,28 +474,6 @@ ui <- page_fluid(
                      card_body(
                        div(style = "display: flex; justify-content: space-around; padding: 10px;",
                            downloadButton("downloadTable2_0", "Download Data", class = "btn-secondary")
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_header(
-                   div(class = "d-flex justify-content-between align-items-center",
-                       "Status data",
-                       tags$button(class = "close-btn", HTML("&#x2715;"))
-                   )
-                 ),
-                 card_body(
-                   card(
-                     card_body(
-                       reactableOutput("data_3")
-                     )
-                   ),
-                   card(
-                     card_body(
-                       div(style = "display: flex; justify-content: space-around; padding: 10px;",
-                           downloadButton("downloadTable3_0", "Download Data", class = "btn-secondary")
                        )
                      )
                    )

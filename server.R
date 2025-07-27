@@ -95,12 +95,7 @@ function(input, output, session) {
     }
     read_xlsx(input$file_3$datapath, sheet = "Paid") 
   })
-  data_Status <-reactive({
-    if (is.null(input$file_3)) {
-      return(NULL)
-    }
-    read_xlsx(input$file_3$datapath, sheet = "Status") 
-  })
+
   
   data_PI <- reactive({
     if (is.null(input$file_3)) {
@@ -330,13 +325,7 @@ function(input, output, session) {
     }
     return(data.frame(d_filtered))
   })
-  data_666 <- eventReactive(input$calcButton_1,{
-    req(data_Status(),data_66())
-    d_filtered <- data_Status() %>% mutate(ID=paste0(Order_number,"_",Paid_ID))
-    d=data_66()%>% mutate(ID=paste0(Order_number,"_",Paid_ID))
-    d_filtered= d_filtered %>% filter(ID %in% d$ID) %>% left_join(d %>% select("ID" ,"Currency_type","Manufacturer","Country","Consignee","Invoice","Exchange"))
-    return(data.frame(d_filtered))
-  })
+
   
 # Payment plots ------------------------------------------------------------
   data_plot_currency=reactive({
@@ -487,55 +476,6 @@ function(input, output, session) {
   #   p
   # })  
 }
-  data_plot_currency_paid=reactive({
-    req(data_666())
-    
-    d=data_666()
-    
-    data_plot_currency=d%>% 
-      filter(!is.na(Currency_type) & !is.na(Status)) %>%
-      group_by(Currency_type,Status)  %>%
-      summarise(Paid= sum(Value,na.rm=TRUE), .groups = 'drop') %>% 
-      complete(Currency_type, Status, fill = list(Paid = 0))
-    
-    # data_plot_currency <- d %>% 
-    #   filter(!is.na(Currency_type) & !is.na(Manufacturer))%>%
-    #   group_by(Currency_type, Manufacturer) %>%
-    #   summarise(Paid = sum(Paid_value, na.rm = TRUE), .groups = 'drop') %>%
-    #   complete(Currency_type, Manufacturer, fill = list(Paid = 0))
-    
-    # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
-    return(data_plot_currency)
-  })
-  output$plot_currency_paid <- renderPlotly({
-    req(data_plot_currency_paid())
-    data_plot_currency_paid <- data_plot_currency_paid()
-    
-    # Create a formatter that only adds thousand separators without currency symbols
-    comma_formatter <- scales::comma_format(big.mark = ",")
-    
-    # Format the display values with only thousand separators
-    data_plot_currency_paid <- data_plot_currency_paid %>%
-      mutate(
-        formatted_value = comma_formatter(Paid)
-      )
-    
-    p <- ggplot(data_plot_currency_paid, 
-                aes(x = Status, y = Currency_type, fill = Paid,
-                    text = paste("Status:", Status, 
-                                 "<br>Currency:", Currency_type,
-                                 "<br>Value:", formatted_value))) +
-      geom_tile() +
-      scale_fill_gradient(low = "#BCE0DA", high = "#FFD3B6") +
-      labs(x = "Status", y = "Currency type", fill = "Paid Value") +
-      theme_minimal() +
-      theme(legend.position = "none") +  # This line removes the legend
-      geom_text(aes(label = formatted_value), 
-                color = "black", size = 3.5)
-    
-    ggplotly(p, tooltip = "text") %>%
-      layout(margin = list(b = 70, l = 70, t = 50, r = 50))
-  })  
   
   data_plot_currency11=reactive({
     req(data_66())
@@ -998,62 +938,7 @@ function(input, output, session) {
     }
   )
   
-  output$data_3 <- renderReactable({
-    req(data_666())
-    
-    reactable(
-      data_666()%>% 
-        # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
-        #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
-        #                                      ,input$multiplier_RUB,input$multiplier_INR)))%>% 
-        mutate(
-          Value_USD=round(Value/Exchange,0),
-          across("Value", ~ formatC(.x, format = "f", digits = 0, flag = "", big.mark = ",", small.mark = "")),
-        )%>% select(Order_number ,Paid_ID  ,Invoice ,Currency_type ,Manufacturer ,Country ,Consignee ,Status , Value , Value_USD) 
-      ,
-      columns = list(
-        Value_USD = colDef(
-          format = colFormat(currency = "USD", separators = TRUE, digits = 0)
-        )
-      ),
-      pagination = TRUE,
-      defaultPageSize = 15,
-      fullWidth=TRUE,
-      # theme = reactable::reactableTheme("bootstrap"),
-      style = list(
-        fontSize = 12,
-        fontFamily = "Arial",
-        border = "1px solid #ddd"
-      )
-      ,
-      # Add theme for the top border
-      theme = reactableTheme(
-        headerStyle = list(
-          "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
-          "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)"),
-          borderColor = "blue"
-        )
-      )
-    )
-  })
-  
-  output$downloadTable3_0 <- downloadHandler(
-    filename = function() {
-      paste("Status data_", Sys.Date(), ".csv", sep="")
-    },
-    content = function(file) {
-      write.csv(data_666()%>% 
-                  # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
-                  #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
-                  #                                      ,input$multiplier_RUB,input$multiplier_INR)))%>% 
-                  mutate(
-                    Value_USD=round(Value/Exchange,0),
-                    across("Value", ~ formatC(.x, format = "f", digits = 0, flag = "", big.mark = ",", small.mark = "")),
-                  )%>% select(Order_number, Paid_ID ,Invoice , Currency_type ,Manufacturer ,Country ,Consignee ,Status , Value , Value_USD) 
-                
-                , file, row.names = FALSE)
-    }
-  )
+
   
   # output$data_4 <- renderReactable({
   #   req(data_Paid_type())
