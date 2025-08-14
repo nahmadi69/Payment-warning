@@ -781,6 +781,7 @@ function(input, output, session) {
       mutate(
         Payment_value_USD=round(Payment_value/Exchange,0),
         Paid_value_USD=round(Paid_value/Exchange,0),
+        Remain_payment_USD=round(Remain_payment/Exchange,0),
         across("Grand_total", ~ formatC(.x, format = "f", digits = 0, flag = "", big.mark = ",", small.mark = "")),
         across("Payment_value", ~ formatC(.x, format = "f", digits = 0, flag = "", big.mark = ",", small.mark = "")),
         across("Remain_payment", ~ formatC(.x, format = "f", digits = 0, flag = "", big.mark = ",", small.mark = "")),
@@ -792,9 +793,11 @@ function(input, output, session) {
              ,"Consignee","Account_detail"
              ,"Currency_type","Grand_total"
              ,"Payment_date","Time_remain","Time_delay","Payment_status",
-             "Exchange","Payment_value","Payment_value_USD","Paid_value","Paid_value_USD","Remain_payment","Paid_date") %>% 
+             "Exchange","Payment_value","Payment_value_USD","Paid_value","Paid_value_USD",
+             "Remain_payment","Remain_payment_USD","Paid_date") %>% 
       arrange(Order_number)
   })
+  
   output$data_1 <- renderReactable({
     req(data_table_payment())
     
@@ -841,6 +844,9 @@ function(input, output, session) {
           format = colFormat(currency = "USD", separators = TRUE, digits = 0)
         ),
         Paid_value_USD = colDef(
+          format = colFormat(currency = "USD", separators = TRUE, digits = 0)
+        ),
+        Remain_payment_USD = colDef(
           format = colFormat(currency = "USD", separators = TRUE, digits = 0)
         )
       )

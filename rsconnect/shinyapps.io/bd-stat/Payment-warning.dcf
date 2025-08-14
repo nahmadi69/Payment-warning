@@ -5,7 +5,7 @@ account: bd-stat
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 11457321
-bundleId: 10681032
+bundleId: 10772042
 url: https://bd-stat.shinyapps.io/Payment-warning/
 version: 1
 asMultiple: FALSE
