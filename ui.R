@@ -304,7 +304,42 @@ ui <- page_fluid(
                        ),
                        card_body(
                          div(class = "combined-currency-card",
-                             htmlOutput("combined_currency_summary")
+                             htmlOutput("combined_currency_summary_2")
+                         ),
+                         tags$style(HTML("
+                           .combined-currency-card { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%;}
+                           .currency-breakdown { display: flex; flex-direction: column; gap: 15px; padding-right: 20px; border-right: 2px solid #eee; }
+                           .total-summary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 8px; padding: 10px; display: flex; align-items: center; margin-left: 1px; }
+                           .currency-item { display: flex; align-items: center; gap: 10px; padding: 12px; background: #f8f9fa; border-radius: 8px; transition: transform 0.2s; }
+                           .currency-item:hover { transform: translateX(5px); }
+                           .total-icon { font-size: 2.5em; opacity: 0.9; }
+                           .currency-icon { font-size: 1.5em; width: 30px; text-align: center; }
+                           .currency-icon.usd { color: #28a745; } .currency-icon.euro { color: #007bff; }
+                           .currency-icon.rub { color: #dc3545; } .currency-icon.dinar { color: #ffc107; } .currency-icon.inr { color: #fd7e14; }
+                         "))
+                       )
+                     ),
+                     col_widths = c(5,5)
+                   )
+                 )
+               ),
+               card(
+                 card_body(
+                   layout_columns(
+                     card(
+                       height = "500px",
+                       card_header(
+                         div(class = "d-flex justify-content-between align-items-center",
+                             div(
+                               tags$i(class = "fas fa-coins me-2"),
+                               "Overdue Payment"
+                             ),
+                             tags$button(class = "close-btn", HTML("&#x2715;"))
+                         )
+                       ),
+                       card_body(
+                         div(class = "combined-currency-card",
+                             htmlOutput("combined_currency_summary_3")
                          ),
                          tags$style(HTML("
                            .combined-currency-card { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%;}
@@ -325,14 +360,14 @@ ui <- page_fluid(
                          div(class = "d-flex justify-content-between align-items-center",
                              div(
                                tags$i(class = "fas fa-coins me-2"),
-                               "Overdue Payment"
+                               "Future Payment"
                              ),
                              tags$button(class = "close-btn", HTML("&#x2715;"))
                          )
                        ),
                        card_body(
                          div(class = "combined-currency-card",
-                             htmlOutput("combined_currency_summary_2")
+                             htmlOutput("combined_currency_summary_4")
                          ),
                          tags$style(HTML("
                            .combined-currency-card { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%;}
@@ -347,7 +382,7 @@ ui <- page_fluid(
                          "))
                        )
                      ),
-                     col_widths = c(4,4,4)
+                     col_widths = c(5,5)
                    )
                  )
                ),
@@ -474,6 +509,28 @@ ui <- page_fluid(
                      card_body(
                        div(style = "display: flex; justify-content: space-around; padding: 10px;",
                            downloadButton("downloadTable2_0", "Download Data", class = "btn-secondary")
+                       )
+                     )
+                   )
+                 )
+               ),
+               card(
+                 card_header(
+                   div(class = "d-flex justify-content-between align-items-center",
+                       "Additional Paid",
+                       tags$button(class = "close-btn", HTML("&#x2715;"))
+                   )
+                 ),
+                 card_body(
+                   card(
+                     card_body(
+                       reactableOutput("data_3")
+                     )
+                   ),
+                   card(
+                     card_body(
+                       div(style = "display: flex; justify-content: space-around; padding: 10px;",
+                           downloadButton("downloadTable3_0", "Download Data", class = "btn-secondary")
                        )
                      )
                    )
