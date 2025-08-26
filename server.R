@@ -898,7 +898,7 @@ function(input, output, session) {
           Paid_value = formatC(Paid_value, format = "f", digits = 0, big.mark = ",")
         ) %>%
         select(Order_number, Paid_ID,Year, Invoice, Currency_type, Manufacturer, Country,
-               Consignee, paid_type, Paid_date, Paid_value,Exchange_paid_day, Paid_value_USD)
+               Consignee, paid_type, Paid_date, Paid_value,Exchange,Exchange_paid_day, Paid_value_USD)
       ,
       columns = list(
         Paid_value_USD = colDef(
@@ -939,7 +939,7 @@ function(input, output, session) {
                     Paid_value = formatC(Paid_value, format = "f", digits = 0, big.mark = ",")
                   ) %>%
                   select(Order_number, Paid_ID,Year, Invoice, Currency_type, Manufacturer, Country,
-                         Consignee, paid_type, Paid_date, Paid_value,Exchange_paid_day, Paid_value_USD) 
+                         Consignee, paid_type, Paid_date, Paid_value,Exchange,Exchange_paid_day, Paid_value_USD) 
                 , file, row.names = FALSE)
     }
   )
