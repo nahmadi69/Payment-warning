@@ -183,12 +183,12 @@ function(input, output, session) {
   
   output$date_range_selector <- renderUI({
     result <- tryCatch({
-      min_date <- min(data_1_1()$Payment_date,na.rm=TRUE)
-      max_date <- max(data_1_1()$Payment_date,na.rm=TRUE)      
-      # min_date_2 <- min(data_11_1()$Paid_date,na.rm=TRUE)
-      # max_date_2 <- max(data_11_1()$Paid_date,na.rm=TRUE)
-      # min_date <- min(min_date_1,min_date_2,na.rm=TRUE)
-      # max_date <- max(max_date_1,max_date_2,na.rm=TRUE)
+      min_date_1 <- min(data_1_1()$Payment_date,na.rm=TRUE)
+      max_date_1 <- max(data_1_1()$Payment_date,na.rm=TRUE)      
+      min_date_2 <- min(data_11_1()$Paid_date,na.rm=TRUE)
+      max_date_2 <- max(data_11_1()$Paid_date,na.rm=TRUE)
+      min_date <- min(min_date_1,min_date_2,na.rm=TRUE)
+      max_date <- max(max_date_1,max_date_2,na.rm=TRUE)
       dateRangeInput(
         "date_range",
         label = "Select date range",
@@ -214,7 +214,8 @@ function(input, output, session) {
   })
   data_22 <- reactive({
     req(data_11_1(),data_2(),input$date_range)
-    data_11_1() %>% filter(Order_number %in% unique(data_2()$Order_number))
+    # data_11_1() %>% filter(Order_number %in% unique(data_2()$Order_number))
+    data_11_1() %>% filter(data_11_1()$Paid_date >= input$date_range[1] & data_11_1()$Paid_date <= input$date_range[2])
   })
   
   Manufacturer_1 <- reactive({
@@ -944,15 +945,18 @@ function(input, output, session) {
     }
   )
   
-  
   dta_additional_payment=reactive({
     req(data_6(),data_66())
     
     d_payment=data_6()%>%
-      distinct(Order_number, .keep_all = TRUE) %>% 
+      distinct(Invoice, .keep_all = TRUE) %>% 
+      group_by(Order_number)%>% 
+      summarise(Grand_total=sum(Grand_total,na.rm=TRUE))%>% 
       left_join(data_66() %>% 
                   group_by(Order_number) %>% 
                   summarise(Total_Paid=sum(Paid_value,na.rm=TRUE)))%>% 
+      left_join(data_6() %>%
+                  distinct(Order_number, .keep_all = TRUE) %>% select(-Grand_total))%>% 
       mutate(Total_Paid=if_else(is.na(Total_Paid),0,Total_Paid)) %>% 
       select("Order_number","Manufacturer","Invoice","Year",
              "Invoice_type","Country","Consignee","Exchange",
