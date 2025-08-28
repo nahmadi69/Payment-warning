@@ -435,37 +435,7 @@ ui <- page_fluid(
                        height = "500px", # Added height for consistency
                        card_header(
                          div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value in USD by Value type",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput("plot_Paid_type")
-                       )
-                     )
-                   )
-                 )
-               ),
-               card(
-                 card_body(
-                   layout_columns(
-                     card(
-                       height = "500px", # Added height for consistency
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value by manufacturer",
-                             tags$button(class = "close-btn", HTML("&#x2715;"))
-                         )
-                       ),
-                       card_body(
-                         plotlyOutput('plot_Manufacturer_1')
-                       )
-                     ),
-                     card(
-                       height = "500px", # Added height for consistency
-                       card_header(
-                         div(class = "d-flex justify-content-between align-items-center",
-                             "Paid value in USD by manufacturer",
+                             "Total paid value in USD by manufacturer",
                              tags$button(class = "close-btn", HTML("&#x2715;"))
                          )
                        ),
@@ -475,20 +445,63 @@ ui <- page_fluid(
                      )
                    )
                  )
+               )
+               ,
+               card(
+                 card_body(
+                   layout_columns(
+                     card(
+                       height = "500px", # Added height for consistency
+                       card_header(
+                         div(class = "d-flex justify-content-between align-items-center",
+                             "Total payment value in USD by year of export",
+                             tags$button(class = "close-btn", HTML("&#x2715;"))
+                         )
+                       ),
+                       card_body(
+                         plotlyOutput('plot_Year_1')
+                       )
+                     ),
+                     card(
+                       height = "500px", # Added height for consistency
+                       card_header(
+                         div(class = "d-flex justify-content-between align-items-center",
+                             "Total payment value in USD by manufacturer",
+                             tags$button(class = "close-btn", HTML("&#x2715;"))
+                         )
+                       ),
+                       card_body(
+                         plotlyOutput("plot_Manufacturer_1")
+                       )
+                     )
+                   )
+                 )
                ),
                card(
                  card_body(
                    layout_columns(
                      card(
-                       height = "600px", # Added height
+                       height = "500px", # Added height for consistency
                        card_header(
                          div(class = "d-flex justify-content-between align-items-center",
-                             "Payments by payment type and currency type",
+                             "Total overdue payment in USD by year of export",
                              tags$button(class = "close-btn", HTML("&#x2715;"))
                          )
                        ),
                        card_body(
-                         plotlyOutput('plot_currency', height="500px") # ensure plot has enough height
+                         plotlyOutput('plot_Year_3')
+                       )
+                     ),
+                     card(
+                       height = "500px", # Added height for consistency
+                       card_header(
+                         div(class = "d-flex justify-content-between align-items-center",
+                             "Total overdue payment in USD by manufacturer",
+                             tags$button(class = "close-btn", HTML("&#x2715;"))
+                         )
+                       ),
+                       card_body(
+                         plotlyOutput("plot_Manufacturer_3")
                        )
                      )
                    )

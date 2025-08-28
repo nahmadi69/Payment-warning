@@ -560,52 +560,54 @@ function(input, output, session) {
     ggplotly(p)
   })
   
-  data_Manufacturer_1=reactive({
-    req(data_66())
-    
-    d=data_66() 
-    
-    data_plot_currency <- d %>% 
-      filter(!is.na(Currency_type) & !is.na(Manufacturer))%>%
-      group_by(Currency_type, Manufacturer) %>%
-      summarise(Paid = sum(Paid_value, na.rm = TRUE), .groups = 'drop') %>%
-      complete(Currency_type, Manufacturer, fill = list(Paid = 0))
-    
-
-    
-    
-    # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
-    return(data_plot_currency)
-  })
-  output$plot_Manufacturer_1 <- renderPlotly({
-    req(data_Manufacturer_1())
-    data_Manufacturer_1 <- data_Manufacturer_1()
-    
-    # Create a formatter that only adds thousand separators without currency symbols
-    comma_formatter <- scales::comma_format(big.mark = ",")
-    
-    # Format the display values with only thousand separators
-    data_Manufacturer_1 <- data_Manufacturer_1 %>%
-      mutate(
-        formatted_value = comma_formatter(Paid)
-      )
-    
-    p <- ggplot(data_Manufacturer_1, 
-                aes(x =Currency_type , y = Manufacturer , fill = Paid,
-                    text = paste("Manufacturer:", Manufacturer, 
-                                 "<br>Currency:", Currency_type,
-                                 "<br>Value:", formatted_value))) +
-      geom_tile() +
-      scale_fill_gradient(low = "#BCE0DA", high = "#FFD3B6") +
-      labs(x = "Currency type", y = "Manufacturer", fill = "Paid Value") +
-      theme_minimal() +
-      theme(legend.position = "none") +  # This line removes the legend
-      geom_text(aes(label = formatted_value), 
-                color = "black", size = 3.5)
-    
-    ggplotly(p, tooltip = "text") %>%
-      layout(margin = list(b = 70, l = 70, t = 50, r = 50))
-  })  
+{  
+  # data_Manufacturer_1=reactive({
+  #   req(data_66())
+  #   
+  #   d=data_66() 
+  #   
+  #   data_plot_currency <- d %>% 
+  #     filter(!is.na(Currency_type) & !is.na(Manufacturer))%>%
+  #     group_by(Currency_type, Manufacturer) %>%
+  #     summarise(Paid = sum(Paid_value, na.rm = TRUE), .groups = 'drop') %>%
+  #     complete(Currency_type, Manufacturer, fill = list(Paid = 0))
+  #   
+  # 
+  #   
+  #   
+  #   # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
+  #   return(data_plot_currency)
+  # })
+  # output$plot_Manufacturer_1 <- renderPlotly({
+  #   req(data_Manufacturer_1())
+  #   data_Manufacturer_1 <- data_Manufacturer_1()
+  #   
+  #   # Create a formatter that only adds thousand separators without currency symbols
+  #   comma_formatter <- scales::comma_format(big.mark = ",")
+  #   
+  #   # Format the display values with only thousand separators
+  #   data_Manufacturer_1 <- data_Manufacturer_1 %>%
+  #     mutate(
+  #       formatted_value = comma_formatter(Paid)
+  #     )
+  #   
+  #   p <- ggplot(data_Manufacturer_1, 
+  #               aes(x =Currency_type , y = Manufacturer , fill = Paid,
+  #                   text = paste("Manufacturer:", Manufacturer, 
+  #                                "<br>Currency:", Currency_type,
+  #                                "<br>Value:", formatted_value))) +
+  #     geom_tile() +
+  #     scale_fill_gradient(low = "#BCE0DA", high = "#FFD3B6") +
+  #     labs(x = "Currency type", y = "Manufacturer", fill = "Paid Value") +
+  #     theme_minimal() +
+  #     theme(legend.position = "none") +  # This line removes the legend
+  #     geom_text(aes(label = formatted_value), 
+  #               color = "black", size = 3.5)
+  #   
+  #   ggplotly(p, tooltip = "text") %>%
+  #     layout(margin = list(b = 70, l = 70, t = 50, r = 50))
+  # }) 
+  }
   
   data_Manufacturer_2=reactive({
     req(data_6())
@@ -652,6 +654,98 @@ function(input, output, session) {
       )
   })
   
+  
+  data_Manufacturer_1=reactive({
+    req(data_6())
+    
+    d=data_6()
+    
+    d <- d %>% 
+      filter(!is.na(Order_number)) %>% 
+      mutate(Paid_value=Payment_value/Exchange)%>% 
+      group_by(Manufacturer) %>% 
+      summarise(Paid = sum(Paid_value, na.rm = TRUE))%>% 
+      # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
+      #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
+      #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
+      # ungroup() %>% 
+      # group_by(Manufacturer)%>% 
+      # summarise(Paid=sum(Paid_value,na.rm=TRUE))
+      
+      
+      # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
+      return(d)
+  })
+  output$plot_Manufacturer_1 <- renderPlotly({
+    req(data_Manufacturer_1())
+    df <- data_Manufacturer_1()
+    
+    # Ensure Paid is numeric
+    df$Paid <- round(as.numeric(df$Paid),0)
+    
+    # Calculate percentage
+    df$percent <- round(df$Paid / sum(df$Paid) * 100, 1)
+    comma_formatter <- scales::comma_format(big.mark = ",")
+    
+    # Create custom text: "Paid value (percent%)"
+    df$custom_text <- paste0(comma_formatter(df$Paid), " (", df$percent, "%)")
+    
+    plot_ly(df, labels = ~Manufacturer, values = ~Paid, type = 'pie',
+            text = ~custom_text, textinfo = "text") %>%
+      layout(
+        # title = "Manufacturer Distribution",
+        showlegend = TRUE,
+        piecolorway = RColorBrewer::brewer.pal(9, "Set1"),
+        hoverinfo = "label+text"
+      )
+  })
+  
+  data_Manufacturer_3=reactive({
+    req(data_6())
+    
+    d=data_6()
+    
+    d <- d %>% 
+      filter(!is.na(Order_number) & Time_remain<0) %>% 
+      mutate(Paid_value=Remain_payment/Exchange)%>% 
+      group_by(Manufacturer) %>% 
+      summarise(Paid = sum(Paid_value, na.rm = TRUE))%>% 
+      # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
+      #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
+      #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
+      # ungroup() %>% 
+      # group_by(Manufacturer)%>% 
+      # summarise(Paid=sum(Paid_value,na.rm=TRUE))
+      
+      
+      # data_plot_currency=d1 %>% left_join(d2) %>% left_join(d3)
+      return(d)
+  })
+  output$plot_Manufacturer_3 <- renderPlotly({
+    req(data_Manufacturer_3())
+    df <- data_Manufacturer_3()
+    
+    # Ensure Paid is numeric
+    df$Paid <- round(as.numeric(df$Paid),0)
+    
+    # Calculate percentage
+    df$percent <- round(df$Paid / sum(df$Paid) * 100, 1)
+    comma_formatter <- scales::comma_format(big.mark = ",")
+    
+    # Create custom text: "Paid value (percent%)"
+    df$custom_text <- paste0(comma_formatter(df$Paid), " (", df$percent, "%)")
+    
+    plot_ly(df, labels = ~Manufacturer, values = ~Paid, type = 'pie',
+            text = ~custom_text, textinfo = "text") %>%
+      layout(
+        # title = "Manufacturer Distribution",
+        showlegend = TRUE,
+        piecolorway = RColorBrewer::brewer.pal(9, "Set1"),
+        hoverinfo = "label+text"
+      )
+  })
+  
+  
   data_plot_year=reactive({
     req(data_66(),data_6())
     
@@ -664,6 +758,7 @@ function(input, output, session) {
       mutate(Paid_value=Paid_value/Exchange)%>% 
       group_by(Year) %>% 
       summarise(Paid = sum(Paid_value, na.rm = TRUE))%>% 
+      filter(Paid!=0)
       # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
       #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
       #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
@@ -697,79 +792,173 @@ function(input, output, session) {
       )
   })
   
-  data_Paid_type=reactive({
-    req(data_6(),data_66())
+  data_plot_year_1=reactive({
+    req(data_66(),data_6())
     
-    d=data_6() %>%
-      mutate(Payment_term=round(Payment_term,2)) %>%
-      select("Order_number","Invoice"
-             ,"Invoice_type","Manufacturer","Country"
-             ,"Consignee","Account_detail"
-             ,"Payment_term","Total_value"
-             ,"Shinpment_cost","Grand_total"
-             ,"Payment_value","Paid_value","Remain_payment","Currency_type"
-             ,"Payment_date","Time_remain","Time_delay","Payment_status","Exchange")
+    # d=data_66() %>% left_join(data_6() %>%
+    #                             select(Order_number, Year) %>%
+    #                             distinct(Order_number, .keep_all = TRUE))
     
-    d1=d %>%
-      mutate(Paid_value=Paid_value/Exchange)%>% 
-      # group_by(Currency_type)  %>%
-      summarise(Paid= sum(Paid_value,na.rm=TRUE)) %>% 
-      mutate(Currency_type=1)
-    d2=d %>%
-      mutate(Remain_payment=Remain_payment/Exchange)%>% 
-      # group_by(Currency_type) %>%
-      filter( Time_remain<0) %>%
-      summarise(Overdue= sum(Remain_payment,na.rm=TRUE)) %>% 
-      mutate(Currency_type=1)
-    d3=d %>%
-      mutate(Remain_payment=Remain_payment/Exchange)%>% 
-      # group_by(Currency_type) %>%
-      filter( Time_remain>=0) %>%
-      summarise(Future= sum(Remain_payment,na.rm=TRUE))%>% 
-      mutate(Currency_type=1)
-    
-    d=d1 %>% 
-      full_join(d2) %>% 
-      full_join(d3) %>% 
-      mutate(Future=if_else(is.na(Future),0,Future),
-             Overdue=if_else(is.na(Overdue),0,Overdue),
-             Paid=if_else(is.na(Paid),0,Paid))%>% 
-      gather("Paid_type","Value",-Currency_type)
-    # 
-    # d=data.frame(data_plot_currency()) %>% filter(Paid_type!="Total") %>% 
-    #   # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
-    #   #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
-    #   #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
-    #   mutate(Value=Value/Exchange)%>% 
-    #   group_by(Paid_type)%>% 
-    #   summarise(Value=sum(Value,na.rm=TRUE))
-    
+    d <- data_6() %>% 
+      filter(!is.na(Order_number)) %>% 
+      mutate(Paid_value=Payment_value/Exchange)%>% 
+      group_by(Year) %>% 
+      summarise(Paid = sum(Paid_value, na.rm = TRUE))%>% 
+      filter(Paid!=0)
+    # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
+    #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
+    #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
+    # ungroup() %>% 
+    # group_by(Year)%>% 
+    # summarise(Paid=sum(Paid_value,na.rm=TRUE))
     
     return(d)
   })
-  output$plot_Paid_type <- renderPlotly({ 
-    req(data_Paid_type())
-    df <- data_Paid_type()
+  output$plot_Year_1 <- renderPlotly({
+    req(data_plot_year_1())
+    df <- data_plot_year_1()
+    
     # Ensure Paid is numeric
-    df$Value <- round(as.numeric(df$Value),0)
+    df$Paid <- round(as.numeric(df$Paid),0)
     
     # Calculate percentage
-    df$percent <- round(df$Value / sum(df$Value) * 100, 1)
+    df$percent <- round(df$Paid / sum(df$Paid) * 100, 1)
     comma_formatter <- scales::comma_format(big.mark = ",")
     
     # Create custom text: "Paid value (percent%)"
-    df$custom_text <- paste0(comma_formatter(df$Value), " (", df$percent, "%)")
+    df$custom_text <- paste0(comma_formatter(df$Paid), " (", df$percent, "%)")
     
-    plot_ly(df, labels = ~Paid_type, values = ~Value, type = 'pie',
+    plot_ly(df, labels = ~Year, values = ~Paid, type = 'pie',
             text = ~custom_text, textinfo = "text") %>%
       layout(
-        # title = "Paid_type Distribution",
+        # title = "Manufacturer Distribution",
         showlegend = TRUE,
         piecolorway = RColorBrewer::brewer.pal(9, "Set1"),
         hoverinfo = "label+text"
       )
-  })  
+  })
   
+  data_plot_year_3=reactive({
+    req(data_66(),data_6())
+    
+    # d=data_66() %>% left_join(data_6() %>%
+    #                             select(Order_number, Year) %>%
+    #                             distinct(Order_number, .keep_all = TRUE))
+    
+    d <- data_6() %>% 
+      filter(!is.na(Order_number)& Time_remain<0) %>% 
+      mutate(Paid_value=Remain_payment/Exchange)%>% 
+      group_by(Year) %>% 
+      summarise(Paid = sum(Paid_value, na.rm = TRUE))%>% 
+      filter(Paid!=0)
+    # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
+    #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
+    #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
+    # ungroup() %>% 
+    # group_by(Year)%>% 
+    # summarise(Paid=sum(Paid_value,na.rm=TRUE))
+    
+    return(d)
+  })
+  output$plot_Year_3 <- renderPlotly({
+    req(data_plot_year_3())
+    df <- data_plot_year_3()
+    
+    # Ensure Paid is numeric
+    df$Paid <- round(as.numeric(df$Paid),0)
+    
+    # Calculate percentage
+    df$percent <- round(df$Paid / sum(df$Paid) * 100, 1)
+    comma_formatter <- scales::comma_format(big.mark = ",")
+    
+    # Create custom text: "Paid value (percent%)"
+    df$custom_text <- paste0(comma_formatter(df$Paid), " (", df$percent, "%)")
+    
+    plot_ly(df, labels = ~Year, values = ~Paid, type = 'pie',
+            text = ~custom_text, textinfo = "text") %>%
+      layout(
+        # title = "Manufacturer Distribution",
+        showlegend = TRUE,
+        piecolorway = RColorBrewer::brewer.pal(9, "Set1"),
+        hoverinfo = "label+text"
+      )
+  })
+  
+  
+{  
+  # data_Paid_type=reactive({
+  #   req(data_6(),data_66())
+  #   
+  #   d=data_6() %>%
+  #     mutate(Payment_term=round(Payment_term,2)) %>%
+  #     select("Order_number","Invoice"
+  #            ,"Invoice_type","Manufacturer","Country"
+  #            ,"Consignee","Account_detail"
+  #            ,"Payment_term","Total_value"
+  #            ,"Shinpment_cost","Grand_total"
+  #            ,"Payment_value","Paid_value","Remain_payment","Currency_type"
+  #            ,"Payment_date","Time_remain","Time_delay","Payment_status","Exchange")
+  #   
+  #   d1=d %>%
+  #     mutate(Paid_value=Paid_value/Exchange)%>% 
+  #     # group_by(Currency_type)  %>%
+  #     summarise(Paid= sum(Paid_value,na.rm=TRUE)) %>% 
+  #     mutate(Currency_type=1)
+  #   d2=d %>%
+  #     mutate(Remain_payment=Remain_payment/Exchange)%>% 
+  #     # group_by(Currency_type) %>%
+  #     filter( Time_remain<0) %>%
+  #     summarise(Overdue= sum(Remain_payment,na.rm=TRUE)) %>% 
+  #     mutate(Currency_type=1)
+  #   d3=d %>%
+  #     mutate(Remain_payment=Remain_payment/Exchange)%>% 
+  #     # group_by(Currency_type) %>%
+  #     filter( Time_remain>=0) %>%
+  #     summarise(Future= sum(Remain_payment,na.rm=TRUE))%>% 
+  #     mutate(Currency_type=1)
+  #   
+  #   d=d1 %>% 
+  #     full_join(d2) %>% 
+  #     full_join(d3) %>% 
+  #     mutate(Future=if_else(is.na(Future),0,Future),
+  #            Overdue=if_else(is.na(Overdue),0,Overdue),
+  #            Paid=if_else(is.na(Paid),0,Paid))%>% 
+  #     gather("Paid_type","Value",-Currency_type)
+  #   # 
+  #   # d=data.frame(data_plot_currency()) %>% filter(Paid_type!="Total") %>% 
+  #   #   # left_join(data.frame(Currency_type=c("USD","Euro","IQD","RUB","INR"),
+  #   #   #                      Exchange_rate=c(1,input$multiplier_EUR,input$multiplier_IQD
+  #   #   #                                      ,input$multiplier_RUB,input$multiplier_INR))) %>% 
+  #   #   mutate(Value=Value/Exchange)%>% 
+  #   #   group_by(Paid_type)%>% 
+  #   #   summarise(Value=sum(Value,na.rm=TRUE))
+  #   
+  #   
+  #   return(d)
+  # })
+  # output$plot_Paid_type <- renderPlotly({ 
+  #   req(data_Paid_type())
+  #   df <- data_Paid_type()
+  #   # Ensure Paid is numeric
+  #   df$Value <- round(as.numeric(df$Value),0)
+  #   
+  #   # Calculate percentage
+  #   df$percent <- round(df$Value / sum(df$Value) * 100, 1)
+  #   comma_formatter <- scales::comma_format(big.mark = ",")
+  #   
+  #   # Create custom text: "Paid value (percent%)"
+  #   df$custom_text <- paste0(comma_formatter(df$Value), " (", df$percent, "%)")
+  #   
+  #   plot_ly(df, labels = ~Paid_type, values = ~Value, type = 'pie',
+  #           text = ~custom_text, textinfo = "text") %>%
+  #     layout(
+  #       # title = "Paid_type Distribution",
+  #       showlegend = TRUE,
+  #       piecolorway = RColorBrewer::brewer.pal(9, "Set1"),
+  #       hoverinfo = "label+text"
+  #     )
+  # })  
+}
 # Payment tables ------------------------------------------------------------
   
   data_table_payment=reactive({
