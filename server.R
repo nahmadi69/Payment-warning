@@ -1519,97 +1519,97 @@ function(input, output, session) {
     
   })
   
-  output$combined_currency_summary_2_1 <- renderUI({
-    req(data_66(),dta_additional_payment())
-    
-
-    currency_data <- data_66() %>% 
-      filter(!is.na(Order_number)) %>% 
-      group_by(Currency_type) %>% 
-      summarise(Paid_value = sum(Paid_value, na.rm = TRUE)) %>% 
-      left_join(dta_additional_payment() %>% 
-                  filter(!is.na(Order_number)) %>% 
-                  group_by(Currency_type) %>% 
-                  summarise(Additional_Paid = sum(Additional_Paid, na.rm = TRUE))) %>% 
-      mutate(Paid_value=Paid_value-Additional_Paid)
-    
-    
-    additional_usd_1 <- dta_additional_payment() %>% 
-      filter(!is.na(Order_number)) %>% 
-      mutate(Additional_Paid = Additional_Paid / Exchange) %>% 
-      summarise(Additional_Paid = sum(Additional_Paid, na.rm = TRUE)) %>% 
-      pull(Additional_Paid)
-    
-    total_usd_1 <- data_66() %>% 
-      filter(!is.na(Order_number)) %>% 
-      mutate(Paid_value = Paid_value / Exchange_paid_day) %>% 
-      summarise(Paid_value = sum(Paid_value, na.rm = TRUE)) %>% 
-      pull(Paid_value)-additional_usd_1
-
-    format_value <- function(value) {
-      format(round(value, 1), big.mark = ",", scientific = FALSE)
-    }
-    
-    get_currency <- function(currency) {
-      value <- currency_data$Paid_value[currency_data$Currency_type == currency]
-      ifelse(length(value) > 0 && !is.na(value), format_value(value), "0.0")
-    }
-    
-    HTML(
-      paste0(
-        '<div class="combined-currency-card">
-        <div class="currency-breakdown">
-          <div class="currency-item">
-            <i class="fas fa-dollar-sign currency-icon usd"></i>
-            <div class="currency-details">
-              <span>Dollar</span>
-              <strong>', get_currency("USD"), '</strong>
-            </div>
-          </div>
-          <div class="currency-item">
-            <i class="fas fa-euro-sign currency-icon euro"></i>
-            <div class="currency-details">
-              <span>Euro</span>
-              <strong>', get_currency("Euro"), '</strong>
-            </div>
-          </div>
-          <div class="currency-item">
-            <i class="fas fa-ruble-sign currency-icon rub"></i>
-            <div class="currency-details">
-              <span>Ruble</span>
-              <strong>', get_currency("RUB"), '</strong>
-            </div>
-          </div>
-          <div class="currency-item">
-            <i class="fas fa-donate currency-icon dinar"></i>
-            <div class="currency-details">
-              <span>Dinar</span>
-              <strong>', get_currency("IQD"), '</strong>
-            </div>
-          </div>
-          <div class="currency-item">  <!-- NEW INR BLOCK -->
-            <i class="fas fa-rupee-sign currency-icon inr"></i>
-            <div class="currency-details">
-              <span>Rupee</span>
-              <strong>', get_currency("INR"), '</strong>
-            </div>
-          </div>
-        </div>
-        
-        <div class="total-summary">
-          <div class="total-content">
-            <i class="fas fa-globe-americas total-icon"></i>
-            <div class="total-details">
-              <h2>$', format_value(total_usd_1), '</h2>
-              <small>Equivalent in USD (based on paid date exchange rate)</small>
-            </div>
-          </div>
-        </div>
-      </div>'
-      )
-    )
-    
-  })
+  # output$combined_currency_summary_2_1 <- renderUI({
+  #   req(data_66(),dta_additional_payment())
+  #   
+  # 
+  #   currency_data <- data_66() %>% 
+  #     filter(!is.na(Order_number)) %>% 
+  #     group_by(Currency_type) %>% 
+  #     summarise(Paid_value = sum(Paid_value, na.rm = TRUE)) %>% 
+  #     left_join(dta_additional_payment() %>% 
+  #                 filter(!is.na(Order_number)) %>% 
+  #                 group_by(Currency_type) %>% 
+  #                 summarise(Additional_Paid = sum(Additional_Paid, na.rm = TRUE))) %>% 
+  #     mutate(Paid_value=Paid_value-Additional_Paid)
+  #   
+  #   
+  #   additional_usd_1 <- dta_additional_payment() %>% 
+  #     filter(!is.na(Order_number)) %>% 
+  #     mutate(Additional_Paid = Additional_Paid / Exchange) %>% 
+  #     summarise(Additional_Paid = sum(Additional_Paid, na.rm = TRUE)) %>% 
+  #     pull(Additional_Paid)
+  #   
+  #   total_usd_1 <- data_66() %>% 
+  #     filter(!is.na(Order_number)) %>% 
+  #     mutate(Paid_value = Paid_value / Exchange_paid_day) %>% 
+  #     summarise(Paid_value = sum(Paid_value, na.rm = TRUE)) %>% 
+  #     pull(Paid_value)-additional_usd_1
+  # 
+  #   format_value <- function(value) {
+  #     format(round(value, 1), big.mark = ",", scientific = FALSE)
+  #   }
+  #   
+  #   get_currency <- function(currency) {
+  #     value <- currency_data$Paid_value[currency_data$Currency_type == currency]
+  #     ifelse(length(value) > 0 && !is.na(value), format_value(value), "0.0")
+  #   }
+  #   
+  #   HTML(
+  #     paste0(
+  #       '<div class="combined-currency-card">
+  #       <div class="currency-breakdown">
+  #         <div class="currency-item">
+  #           <i class="fas fa-dollar-sign currency-icon usd"></i>
+  #           <div class="currency-details">
+  #             <span>Dollar</span>
+  #             <strong>', get_currency("USD"), '</strong>
+  #           </div>
+  #         </div>
+  #         <div class="currency-item">
+  #           <i class="fas fa-euro-sign currency-icon euro"></i>
+  #           <div class="currency-details">
+  #             <span>Euro</span>
+  #             <strong>', get_currency("Euro"), '</strong>
+  #           </div>
+  #         </div>
+  #         <div class="currency-item">
+  #           <i class="fas fa-ruble-sign currency-icon rub"></i>
+  #           <div class="currency-details">
+  #             <span>Ruble</span>
+  #             <strong>', get_currency("RUB"), '</strong>
+  #           </div>
+  #         </div>
+  #         <div class="currency-item">
+  #           <i class="fas fa-donate currency-icon dinar"></i>
+  #           <div class="currency-details">
+  #             <span>Dinar</span>
+  #             <strong>', get_currency("IQD"), '</strong>
+  #           </div>
+  #         </div>
+  #         <div class="currency-item">  <!-- NEW INR BLOCK -->
+  #           <i class="fas fa-rupee-sign currency-icon inr"></i>
+  #           <div class="currency-details">
+  #             <span>Rupee</span>
+  #             <strong>', get_currency("INR"), '</strong>
+  #           </div>
+  #         </div>
+  #       </div>
+  #       
+  #       <div class="total-summary">
+  #         <div class="total-content">
+  #           <i class="fas fa-globe-americas total-icon"></i>
+  #           <div class="total-details">
+  #             <h2>$', format_value(total_usd_1), '</h2>
+  #             <small>Equivalent in USD (based on paid date exchange rate)</small>
+  #           </div>
+  #         </div>
+  #       </div>
+  #     </div>'
+  #     )
+  #   )
+  #   
+  # })
   
   output$combined_currency_summary_3 <- renderUI({
     req(data_6())
