@@ -1,149 +1,362 @@
+# ============================================================================
+# ENHANCED SERVER.R - Payment Tracking Shiny App
+# Author: Naser Ahmadi
+# Enhanced: November 2025
+# ============================================================================
+
 source("functions.R")
 
+# ============================================================================
+# CONFIGURATION & SECURITY
+# ============================================================================
+
+# SECURITY NOTE: For production, move credentials to environment variables
+# Use: Sys.getenv("APP_USER"), Sys.getenv("APP_PASSWORD")
 credentials <- data.frame(
-  user = c("Finance","Naser","Naserik"),
-  password = c("MonPassPartout@1352","Na19900912","Ka@126410"),
+  user = c("Finance", "Naser", "Naserik"),
+  password = c(
+    "MonPassPartout@1352",
+    "Na19900912", 
+    "Ka@126410"
+  ),
   stringsAsFactors = FALSE
 )
 
+# ============================================================================
+# CONSTANTS
+# ============================================================================
 
+SUPPORTED_CURRENCIES <- c("IQD", "RUB", "EUR", "INR")
+DEFAULT_EXCHANGE_RATES <- list(
+  IQD = 1310,
+  RUB = 90,
+  EUR = 0.92,
+  INR = 83.5
+)
+
+API_TIMEOUT <- 5
+API_URL <- "https://api.exchangerate-api.com/v4/latest/USD"
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+#' Get fallback exchange rates
+get_fallback_rates <- function() {
+  data.frame(
+    Currency = names(DEFAULT_EXCHANGE_RATES),
+    Rate = unlist(DEFAULT_EXCHANGE_RATES),
+    stringsAsFactors = FALSE,
+    row.names = NULL
+  )
+}
+
+#' Validate uploaded file structure
+validate_upload <- function(file_path) {
+  tryCatch({
+    sheets <- readxl::excel_sheets(file_path)
+    required_sheets <- c("Paid", "PI", "Invoice")
+    
+    if (!all(required_sheets %in% sheets)) {
+      return(list(
+        valid = FALSE,
+        message = paste("Missing required sheets:", 
+                        paste(setdiff(required_sheets, sheets), collapse = ", "))
+      ))
+    }
+    
+    return(list(valid = TRUE, message = "File validated successfully"))
+  }, error = function(e) {
+    return(list(valid = FALSE, message = paste("File validation error:", e$message)))
+  })
+}
+
+#' Format currency with thousand separators
+format_currency <- function(value, digits = 0) {
+  formatC(value, format = "f", digits = digits, 
+          big.mark = ",", small.mark = "")
+}
+
+# ============================================================================
+# SHINY SERVER FUNCTION
+# ============================================================================
 
 function(input, output, session) {
   
+  # Authentication
   res_auth <- secure_server(
     check_credentials = check_credentials(credentials)
   )
-
-# cleaning ----------------------------------------------------------------
-
-
+  
+  # =========================================================================
+  # REACTIVE VALUES
+  # =========================================================================
+  
+  rv <- reactiveValues(
+    exchange_rates = NULL,
+    last_api_call = NULL,
+    api_call_count = 0
+  )
+  
+  # =========================================================================
+  # EXCHANGE RATES MODULE
+  # =========================================================================
+  
   Exchange_rates <- reactive({
+    # Rate limiting: Only call API once every 5 minutes
+    if (!is.null(rv$last_api_call)) {
+      time_diff <- difftime(Sys.time(), rv$last_api_call, units = "mins")
+      if (time_diff < 5 && !is.null(rv$exchange_rates)) {
+        return(rv$exchange_rates)
+      }
+    }
+    
     # Try to get rates from API
-    tryCatch({
-      response <- GET("https://api.Exchangerate-api.com/v4/latest/USD", timeout(5))
+    rates <- tryCatch({
+      response <- GET(API_URL, timeout(API_TIMEOUT))
+      
       if (status_code(response) == 200) {
         data <- fromJSON(content(response, "text"))
-        f <- data.frame(Currency=row.names(t(data.frame(data$rates))),
-                        Rate=t(data.frame(data$rates)))
-        g <- f[f$Currency %in% c("IQD","RUB","EUR","INR"),]
-        return(g)
+        
+        rates_df <- data.frame(
+          Currency = names(data$rates),
+          Rate = unlist(data$rates),
+          stringsAsFactors = FALSE
+        )
+        
+        filtered_rates <- rates_df[rates_df$Currency %in% SUPPORTED_CURRENCIES, ]
+        
+        rv$last_api_call <- Sys.time()
+        rv$api_call_count <- rv$api_call_count + 1
+        rv$exchange_rates <- filtered_rates
+        
+        showNotification(
+          "Exchange rates updated successfully",
+          type = "message",
+          duration = 3
+        )
+        
+        return(filtered_rates)
       } else {
-        # If API call doesn't return 200, use fallback values
         warning("API call failed with status code: ", status_code(response))
         return(get_fallback_rates())
       }
     }, error = function(e) {
-      # If API call errors out completely, use fallback values
       warning("API call error: ", e$message)
+      showNotification(
+        "Using fallback exchange rates. API unavailable.",
+        type = "warning",
+        duration = 5
+      )
       return(get_fallback_rates())
     })
+    
+    return(rates)
   })
-  get_fallback_rates <- function() {
-    # Default fallback Exchange rates (you can update these to recent values)
-    data.frame(
-      Currency = c("IQD", "RUB", "EUR", "INR"),
-      Rate = c(1310, 90, 0.92, 83.5),
-      stringsAsFactors = FALSE
-    )
-  }
+  
+  # =========================================================================
+  # EXCHANGE RATE UI ELEMENTS
+  # =========================================================================
   
   output$multiplier_EUR <- renderUI({
     if (!is.null(input$file_3)) {
       rates <- Exchange_rates()
       eur_rate <- rates$Rate[rates$Currency=="EUR"]
-      if(length(eur_rate) == 0) eur_rate <- 0.92  # Fallback if not found
-      
+      if(length(eur_rate) == 0) eur_rate <- 0.92
       numericInput("multiplier_EUR", "USD to Euro",
                    value = round(eur_rate, 3), min = 0, max = 10)
-    } 
+    }
   })
+  
   output$multiplier_RUB <- renderUI({
     if (!is.null(input$file_3)) {
       rates <- Exchange_rates()
       rub_rate <- rates$Rate[rates$Currency=="RUB"]
-      if(length(rub_rate) == 0) rub_rate <- 90  # Fallback if not found
-      
+      if(length(rub_rate) == 0) rub_rate <- 90
       numericInput("multiplier_RUB", "USD to RUB",
                    value = round(rub_rate, 3), min = 0, max = 100)
-    } 
+    }
   })
+  
   output$multiplier_IQD <- renderUI({
     if (!is.null(input$file_3)) {
       rates <- Exchange_rates()
       iqd_rate <- rates$Rate[rates$Currency=="IQD"]
-      if(length(iqd_rate) == 0) iqd_rate <- 1310  # Fallback if not found
-      
+      if(length(iqd_rate) == 0) iqd_rate <- 1310
       numericInput("multiplier_IQD", "USD to IQD",
                    value = round(iqd_rate, 3), min = 0, max = 2000)
-    } 
+    }
   })
+  
   output$multiplier_INR <- renderUI({
     if (!is.null(input$file_3)) {
       rates <- Exchange_rates()
       inr_rate <- rates$Rate[rates$Currency=="INR"]
-      if(length(inr_rate) == 0) inr_rate <- 83.5  # Fallback if not found
-      
+      if(length(inr_rate) == 0) inr_rate <- 83.5
       numericInput("multiplier_INR", "USD to INR",
                    value = round(inr_rate, 3), min = 0, max = 100)
-    } 
+    }
   })
   
+  # =========================================================================
+  # FILE UPLOAD VALIDATION
+  # =========================================================================
   
-  data_Paid <-reactive({
+  observeEvent(input$file_3, {
+    req(input$file_3)
+    
+    validation <- validate_upload(input$file_3$datapath)
+    
+    if (!validation$valid) {
+      showNotification(
+        validation$message,
+        type = "error",
+        duration = 10
+      )
+      return(NULL)
+    } else {
+      showNotification(
+        "File uploaded and validated successfully!",
+        type = "message",
+        duration = 3
+      )
+    }
+  })
+  
+  # =========================================================================
+  # DATA LOADING MODULE
+  # =========================================================================
+  
+  data_Paid <- reactive({
     if (is.null(input$file_3)) {
       return(NULL)
     }
-    read_xlsx(input$file_3$datapath, sheet = "Paid") 
+    
+    withProgress(message = "Loading Paid data...", value = 0.33, {
+      tryCatch({
+        read_xlsx(input$file_3$datapath, sheet = "Paid")
+      }, error = function(e) {
+        showNotification(
+          paste("Error loading Paid sheet:", e$message),
+          type = "error",
+          duration = 10
+        )
+        return(NULL)
+      })
+    })
   })
-
   
   data_PI <- reactive({
     if (is.null(input$file_3)) {
       return(NULL)
     }
-    read_xlsx(input$file_3$datapath, sheet = "PI")%>%
-      mutate(Payment_date =  ymd(paste0(Payment_year, "-", Payment_month, "-", Payment_day)),
-             Payment_month= month(Payment_date, label = TRUE),
-             Grand_total=Total_value + Shinpment_cost,
-             Payment_value=Payment_term*Grand_total)
+    
+    withProgress(message = "Loading PI data...", value = 0.66, {
+      tryCatch({
+        read_xlsx(input$file_3$datapath, sheet = "PI") %>%
+          mutate(
+            Payment_date = ymd(paste0(Payment_year, "-", Payment_month, "-", Payment_day)),
+            Payment_month = month(Payment_date, label = TRUE),
+            Grand_total = Total_value + Shipment_cost,
+            Payment_value = Payment_term * Grand_total
+          )
+      }, error = function(e) {
+        showNotification(
+          paste("Error loading PI sheet:", e$message),
+          type = "error",
+          duration = 10
+        )
+        return(NULL)
+      })
+    })
   })
+  
   data_Invoice <- reactive({
     if (is.null(input$file_3)) {
       return(NULL)
     }
-    read_xlsx(input$file_3$datapath, sheet = "Invoice") %>%
-      mutate(Payment_date = ymd(paste0(Payment_year, "-", Payment_month, "-", Payment_day)),
-             Payment_month= month(Payment_date, label = TRUE),
-             Grand_total=Total_value + Shinpment_cost,
-             Payment_value=Payment_term*Grand_total)
+    
+    withProgress(message = "Loading Invoice data...", value = 1, {
+      tryCatch({
+        read_xlsx(input$file_3$datapath, sheet = "Invoice") %>%
+          mutate(
+            Payment_date = ymd(paste0(Payment_year, "-", Payment_month, "-", Payment_day)),
+            Payment_month = month(Payment_date, label = TRUE),
+            Grand_total = Total_value + Shipment_cost,
+            Payment_value = Payment_term * Grand_total
+          )
+      }, error = function(e) {
+        showNotification(
+          paste("Error loading Invoice sheet:", e$message),
+          type = "error",
+          duration = 10
+        )
+        return(NULL)
+      })
+    })
   })
   
-  data_1 <- eventReactive(input$file_3,{
-    Payment_data <- data_PI() %>% 
-      bind_rows(data_Invoice())%>% 
-      group_by(Order_number) %>% 
-      filter(!(("Invoice" %in% unique(Invoice_type)) & Invoice_type=="PI"))
-    
-    Paid_data=data_Paid() 
-    
-    Payment_data=payment_function(Payment = Payment_data,Paid = Paid_data)%>% 
-      mutate(Remain_payment=Payment_value-Paid_value,
-             Payment_status=if_else(Paid_value>=Payment_value,"Paid","Unpaid"),
-             Time_remain=as.numeric(Payment_date-today()),
-             Time_remain =case_when(Payment_status == "Paid" ~ NA_real_,TRUE ~ Time_remain ),
-             Time_delay=as.numeric(Paid_date-Payment_date),
-             Time_delay =case_when(Payment_status == "Unpaid" ~ NA_real_,TRUE ~ Time_delay )) %>% 
-      ungroup()
+  # =========================================================================
+  # DATA PROCESSING MODULE
+  # =========================================================================
+  
+  data_1 <- eventReactive(input$file_3, {
+    withProgress(message = "Processing payment data...", value = 0, {
+      tryCatch({
+        Payment_data <- data_PI() %>%
+          bind_rows(data_Invoice()) %>%
+          group_by(Order_number) %>%
+          filter(!(("Invoice" %in% unique(Invoice_type)) & Invoice_type=="PI"))
+        
+        Paid_data <- data_Paid()
+        
+        Payment_data <- payment_function(Payment = Payment_data, Paid = Paid_data) %>%
+          mutate(
+            Remain_payment = Payment_value - Paid_value,
+            Payment_status = if_else(Paid_value >= Payment_value, "Paid", "Unpaid"),
+            Time_remain = as.numeric(Payment_date - today()),
+            Time_remain = case_when(Payment_status == "Paid" ~ NA_real_, TRUE ~ Time_remain),
+            Time_delay = as.numeric(Paid_date - Payment_date),
+            Time_delay = case_when(Payment_status == "Unpaid" ~ NA_real_, TRUE ~ Time_delay)
+          ) %>%
+          ungroup()
+        
+        return(Payment_data)
+      }, error = function(e) {
+        showNotification(
+          paste("Error processing payment data:", e$message),
+          type = "error",
+          duration = 10
+        )
+        return(NULL)
+      })
+    })
   })
-  data_11 <- eventReactive(input$file_3,{
-    read_xlsx(input$file_3$datapath, sheet = "Paid")  %>% 
-      left_join(
-        data_PI() %>% 
-          bind_rows(data_Invoice()) %>% group_by(Order_number) %>% 
-          filter(!(("Invoice" %in% unique(Invoice_type)) & Invoice_type=="PI")) %>% 
-          distinct(Order_number,Invoice,Currency_type,Manufacturer,Country,Consignee)) %>% 
-      mutate(Paid_date =  ymd(paste0(Paid_year, "-", Paid_month, "-", Paid_day)))
+  
+  data_11 <- eventReactive(input$file_3, {
+    tryCatch({
+      read_xlsx(input$file_3$datapath, sheet = "Paid") %>%
+        left_join(
+          data_PI() %>%
+            bind_rows(data_Invoice()) %>%
+            group_by(Order_number) %>%
+            filter(!(("Invoice" %in% unique(Invoice_type)) & Invoice_type=="PI")) %>%
+            distinct(Order_number, Invoice, Currency_type, Manufacturer, Country, Consignee)
+        ) %>%
+        mutate(Paid_date = ymd(paste0(Paid_year, "-", Paid_month, "-", Paid_day)))
+    }, error = function(e) {
+      showNotification(
+        paste("Error processing paid data:", e$message),
+        type = "error",
+        duration = 10
+      )
+      return(NULL)
+    })
   })
+  
+  # =========================================================================
+  # FILTER UI GENERATION
+  # =========================================================================
   
   Year_1 <- reactive({
     result <- tryCatch({
@@ -156,13 +369,17 @@ function(input, output, session) {
       )
       return(NULL)
     })
-    
     return(result)
   })
+  
   output$Year_ui_1 <- renderUI({
     req(Year_1())
-    selectInput("Year_1", "Please select the Year of Export", choices = c("All Years",Year_1()),multiple = TRUE, selected = "All Years")
+    selectInput("Year_1", "Please select the Year of Export", 
+                choices = c("All Years", Year_1()), 
+                multiple = TRUE, 
+                selected = "All Years")
   })
+  
   data_1_1 <- reactive({
     req(data_1())
     d_filtered <- data_1()
@@ -171,6 +388,7 @@ function(input, output, session) {
     }
     return(data.frame(d_filtered))
   })
+  
   data_11_1 <- reactive({
     req(data_11())
     d_filtered <- data_11()
@@ -180,15 +398,15 @@ function(input, output, session) {
     return(data.frame(d_filtered))
   })
   
-  
   output$date_range_selector <- renderUI({
     result <- tryCatch({
-      min_date_1 <- min(data_1_1()$Payment_date,na.rm=TRUE)
-      max_date_1 <- max(data_1_1()$Payment_date,na.rm=TRUE)      
-      min_date_2 <- min(data_11_1()$Paid_date,na.rm=TRUE)
-      max_date_2 <- max(data_11_1()$Paid_date,na.rm=TRUE)
-      min_date <- min(min_date_1,min_date_2,na.rm=TRUE)
-      max_date <- max(max_date_1,max_date_2,na.rm=TRUE)
+      min_date_1 <- min(data_1_1()$Payment_date, na.rm=TRUE)
+      max_date_1 <- max(data_1_1()$Payment_date, na.rm=TRUE)
+      min_date_2 <- min(data_11_1()$Paid_date, na.rm=TRUE)
+      max_date_2 <- max(data_11_1()$Paid_date, na.rm=TRUE)
+      min_date <- min(min_date_1, min_date_2, na.rm=TRUE)
+      max_date <- max(max_date_1, max_date_2, na.rm=TRUE)
+      
       dateRangeInput(
         "date_range",
         label = "Select date range",
@@ -204,18 +422,21 @@ function(input, output, session) {
         paste("An error occurred:", e$message),
         type = "error"
       )
-      return(NULL)  # Return NULL if there's an error
+      return(NULL)
     })
     return(result)
   })
+  
   data_2 <- reactive({
-    req(data_1_1(),input$date_range)
-    data_1_1() %>% filter(data_1_1()$Payment_date >= input$date_range[1] & data_1_1()$Payment_date <= input$date_range[2])
+    req(data_1_1(), input$date_range)
+    data_1_1() %>% 
+      filter(Payment_date >= input$date_range[1] & Payment_date <= input$date_range[2])
   })
+  
   data_22 <- reactive({
-    req(data_11_1(),data_2(),input$date_range)
-    # data_11_1() %>% filter(Order_number %in% unique(data_2()$Order_number))
-    data_11_1() %>% filter(data_11_1()$Paid_date >= input$date_range[1] & data_11_1()$Paid_date <= input$date_range[2])
+    req(data_11_1(), input$date_range)
+    data_11_1() %>% 
+      filter(Paid_date >= input$date_range[1] & Paid_date <= input$date_range[2])
   })
   
   Manufacturer_1 <- reactive({
@@ -229,13 +450,17 @@ function(input, output, session) {
       )
       return(NULL)
     })
-    
     return(result)
   })
+  
   output$Manufacturer_ui_1 <- renderUI({
     req(Manufacturer_1())
-    selectInput("Manufacturer_1", "Please select the manufacturers", choices = c("All manufacturers",Manufacturer_1()),multiple = TRUE, selected = "All manufacturers")
+    selectInput("Manufacturer_1", "Please select the manufacturers", 
+                choices = c("All manufacturers", Manufacturer_1()), 
+                multiple = TRUE, 
+                selected = "All manufacturers")
   })
+  
   data_4 <- reactive({
     req(data_2())
     d_filtered <- data_2()
@@ -244,6 +469,7 @@ function(input, output, session) {
     }
     return(data.frame(d_filtered))
   })
+  
   data_44 <- reactive({
     req(data_22())
     d_filtered <- data_22()
@@ -262,28 +488,31 @@ function(input, output, session) {
         paste("An error occurred:", e$message),
         type = "error"
       )
-      return(NULL)  
+      return(NULL)
     })
-    
     return(result)
   })
+  
   output$Country_ui_1 <- renderUI({
     req(Country_1())
-    selectInput("Country_1", "Please select the Countries", choices = c("All Countries",Country_1()),multiple = TRUE, selected = "All Countries")
+    selectInput("Country_1", "Please select the Countries", 
+                choices = c("All Countries", Country_1()), 
+                multiple = TRUE, 
+                selected = "All Countries")
   })
+  
   data_5 <- reactive({
     req(data_4())
     d_filtered <- data_4()
-    
     if (!("All Countries" %in% input$Country_1)) {
       d_filtered <- d_filtered %>% filter(Country %in% input$Country_1)
     }
     return(data.frame(d_filtered))
   })
+  
   data_55 <- reactive({
     req(data_44())
     d_filtered <- data_44()
-    
     if (!("All Countries" %in% input$Country_1)) {
       d_filtered <- d_filtered %>% filter(Country %in% input$Country_1)
     }
@@ -299,33 +528,40 @@ function(input, output, session) {
         paste("An error occurred:", e$message),
         type = "error"
       )
-      return(NULL)  
+      return(NULL)
     })
-    
     return(result)
   })
+  
   output$Consignee_ui_1 <- renderUI({
     req(Consignee_1())
-    selectInput("Consignee_1", "Please select the Consignees", choices = c("All Consignees",Consignee_1()),multiple = TRUE, selected = "All Consignees")
+    selectInput("Consignee_1", "Please select the Consignees", 
+                choices = c("All Consignees", Consignee_1()), 
+                multiple = TRUE, 
+                selected = "All Consignees")
   })
-  data_6 <- eventReactive(input$calcButton_1,{
+  
+  data_6 <- eventReactive(input$calcButton_1, {
     req(data_5())
     d_filtered <- data_5()
-    
     if (!("All Consignees" %in% input$Consignee_1)) {
       d_filtered <- d_filtered %>% filter(Consignee %in% input$Consignee_1)
     }
     return(data.frame(d_filtered))
   })
-  data_66 <- eventReactive(input$calcButton_1,{
+  
+  data_66 <- eventReactive(input$calcButton_1, {
     req(data_55())
     d_filtered <- data_55()
-    
     if (!("All Consignees" %in% input$Consignee_1)) {
       d_filtered <- d_filtered %>% filter(Consignee %in% input$Consignee_1)
     }
     return(data.frame(d_filtered))
   })
+  
+  # Rest of server code continues with plots and tables...
+  # (Keeping the remainder of your original server.R code)
+  
 
   
 # Payment plots ------------------------------------------------------------
@@ -338,7 +574,7 @@ function(input, output, session) {
              ,"Invoice_type","Manufacturer","Country"
              ,"Consignee","Account_detail"
              ,"Payment_term","Total_value"
-             ,"Shinpment_cost","Grand_total"
+             ,"Shipment_cost","Grand_total"
              ,"Payment_value","Paid_value","Remain_payment","Currency_type"
              ,"Payment_date","Time_remain","Time_delay","Payment_status")
     
@@ -895,7 +1131,7 @@ function(input, output, session) {
   #            ,"Invoice_type","Manufacturer","Country"
   #            ,"Consignee","Account_detail"
   #            ,"Payment_term","Total_value"
-  #            ,"Shinpment_cost","Grand_total"
+  #            ,"Shipment_cost","Grand_total"
   #            ,"Payment_value","Paid_value","Remain_payment","Currency_type"
   #            ,"Payment_date","Time_remain","Time_delay","Payment_status","Exchange")
   #   
