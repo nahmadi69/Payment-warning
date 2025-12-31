@@ -1214,7 +1214,7 @@ function(input, output, session) {
         across("Paid_value", ~ formatC(.x, format = "f", digits = 0, flag = "", big.mark = ",", small.mark = ""))
       ) %>%
       mutate(Payment_term=round(Payment_term,2),Payment_status=if_else(is.na(Payment_status),"Unpaid",Payment_status)) %>% 
-      select("Order_number","Invoice","Year"       
+      select("Order_number","Invoice","Medicine","Year"       
              ,"Invoice_type","Manufacturer","Country"       
              ,"Consignee","Account_detail"
              ,"Currency_type","Grand_total"
@@ -1234,6 +1234,7 @@ function(input, output, session) {
       fullWidth=TRUE,
       # theme = reactable::reactableTheme("bootstrap"),
       style = list(
+        color = "black",       # <--- Adds black text to the entire table
         fontSize = 12,
         fontFamily = "Arial",
         border = "1px solid #ddd"
